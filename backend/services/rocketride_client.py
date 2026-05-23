@@ -1,16 +1,19 @@
-"""Direct GMI Cloud client — runs Gemma 4 on GMI's H100/H200 GPUs.
+"""Commentary LLM client — Gemma 4 31B on GMI Cloud.
 
 Three sponsors hit in one call: Gemma (model), GMI Cloud (host), NVIDIA (GPUs).
 
-Misnamed file (legacy of when this wrapped RocketRide) — kept to avoid churning
-imports in main.py and routes/stream.py. Same public interface:
-`CommentaryPipeline.start / .stop / .commentate(scene, language) -> str | None`.
+Misnamed file (legacy of when this wrapped RocketRide). Same public interface:
+`CommentaryPipeline.start / .stop / .commentate(...)`.
+
+Two modes:
+  • "game"  — react to what's happening on the pitch (the original behavior)
+  • "chat"  — react sarcastically to a fan comment during a lull
 """
 
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
@@ -20,19 +23,21 @@ _BASE_URL = os.getenv("GMI_BASE_URL", "https://api.gmi-serving.com/v1")
 _MODEL = os.getenv("GMI_MODEL", "google/gemma-4-31b-it")
 
 _SYSTEM = (
-    "You are a sarcastic, witty World Cup soccer commentator with a dry sense of "
-    "humor — think Peter Drury crossed with Anthony Bourdain.\n"
-    "You will receive a JSON payload describing what just happened in a game "
-    "(scene description, players visible, ball position, recent events) plus a "
-    "target language code.\n"
-    "Reply with ONE short live-commentary line — 1 to 2 sentences, max 25 words.\n"
-    "Be sarcastic but not mean. Reference what's actually on screen. Roast the "
-    "players' decisions, not their identities.\n"
-    "Write the line NATIVELY in the requested language. Do NOT translate from "
-    "English — sarcasm dies in translation. Match the rhythm and idioms of that "
-    "language.\n"
-    "Do not include speaker tags, stage directions, quotes, or any preamble. "
-    "Output only the spoken line."
+    "You are a sarcastic, witty World Cup soccer commentator — dry, theatrical, "
+    "Peter Drury crossed with Anthony Bourdain.\n\n"
+    "You will receive JSON describing the moment. The `mode` field tells you "
+    "what to do:\n\n"
+    "  mode='game'  — comment on the action. Use `scene`, `event`, `score`, and "
+    "`recent_events` to keep narrative continuity. React to score changes.\n\n"
+    "  mode='chat'  — the pitch is in a lull. React sarcastically to the fan "
+    "comment in `comment.text` from `comment.author`. Punch up at the take, "
+    "not at the person. You can briefly tie it back to the game if relevant.\n\n"
+    "ALWAYS:\n"
+    "  • ONE line. 1–2 sentences. Max 25 words.\n"
+    "  • Sarcastic, not mean. Roast decisions, not identities.\n"
+    "  • Write NATIVELY in the requested `language`. No translation from English.\n"
+    "  • No speaker tags, no stage directions, no quotes, no preamble. Output "
+    "    only the spoken line."
 )
 
 
@@ -56,28 +61,45 @@ class CommentaryPipeline:
         if self._client:
             await self._client.aclose()
 
-    async def commentate(self, scene: str, language: str = "en") -> str | None:
+    async def commentate(
+        self,
+        scene: str,
+        language: str = "en",
+        event: str = "buildup",
+        score: dict | None = None,
+        recent_events: list[dict] | None = None,
+        mode: Literal["game", "chat"] = "game",
+        comment: dict | None = None,
+    ) -> str | None:
         if not self._client:
             return None
 
         payload: dict[str, Any] = {
-            "model": _MODEL,
-            "messages": [
-                {"role": "system", "content": _SYSTEM},
-                {
-                    "role": "user",
-                    "content": json.dumps({"scene": scene, "language": language}),
-                },
-            ],
-            "max_tokens": int(os.getenv("COMMENTARY_MAX_TOKENS", "80")),
-            "temperature": 0.85,
+            "mode": mode,
+            "scene": scene,
+            "event": event,
+            "score": score or {},
+            "recent_events": recent_events or [],
+            "language": language,
         }
+        if comment is not None:
+            payload["comment"] = comment
 
         try:
-            resp = await self._client.post("/chat/completions", json=payload)
+            resp = await self._client.post(
+                "/chat/completions",
+                json={
+                    "model": _MODEL,
+                    "messages": [
+                        {"role": "system", "content": _SYSTEM},
+                        {"role": "user", "content": json.dumps(payload)},
+                    ],
+                    "max_tokens": int(os.getenv("COMMENTARY_MAX_TOKENS", "80")),
+                    "temperature": 0.85,
+                },
+            )
             resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip() or None
+            return resp.json()["choices"][0]["message"]["content"].strip() or None
         except httpx.HTTPStatusError as e:
             log.warning("GMI %s: %s", e.response.status_code, e.response.text[:200])
             return None

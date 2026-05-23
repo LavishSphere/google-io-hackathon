@@ -16,9 +16,41 @@ body {
 }
 
 .app {
-  max-width: 960px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 2rem 1.25rem;
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.stage-side {
+  background: #11151c;
+  border: 1px solid #1f2530;
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-title {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #1f2530;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 900px) {
+  .stage { grid-template-columns: 1fr; }
+  .stage-side { height: 280px; }
 }
 
 .header {
@@ -50,11 +82,38 @@ body {
   left: 0; right: 0; bottom: 0;
   padding: 1rem 1.25rem 1.5rem;
   background: linear-gradient(transparent, rgba(0,0,0,0.85));
-  font-size: 1.4rem;
-  font-weight: 500;
-  line-height: 1.35;
-  min-height: 4rem;
+  min-height: 5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
+
+.overlay-chat-context {
+  font-size: 0.85rem;
+  background: rgba(0,0,0,0.55);
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  align-self: flex-start;
+  max-width: 80%;
+  color: var(--muted);
+}
+
+.overlay-chat-author { color: var(--accent); font-weight: 600; margin-right: 0.5rem; }
+.overlay-chat-text   { color: #cdd3df; }
+
+.overlay-line { display: flex; gap: 0.6rem; align-items: baseline; flex-wrap: wrap; }
+
+.overlay-source {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+}
+.overlay-source-game { background: #1a3a4a; color: #80d8ff; }
+.overlay-source-chat { background: #4a3a1a; color: var(--accent); }
+
+.overlay-text { font-size: 1.4rem; font-weight: 500; line-height: 1.35; }
 
 .controls {
   display: flex;
@@ -89,3 +148,154 @@ body {
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+.scoreboard {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.65);
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+.scoreboard-team { display: flex; gap: 0.35rem; align-items: baseline; }
+.scoreboard-team-name { color: var(--muted); text-transform: uppercase; font-size: 0.75rem; }
+.scoreboard-team-score { color: var(--accent); font-size: 1.05rem; }
+
+.history {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-right: 0.25rem;
+}
+
+.history-empty {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+}
+
+.history-item {
+  background: #161b24;
+  border-left: 3px solid #2a3140;
+  padding: 0.5rem 0.65rem;
+  border-radius: 4px;
+}
+
+.history-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.history-ts { font-variant-numeric: tabular-nums; }
+
+.history-event {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: #1f2530;
+}
+
+.history-event-goal       { background: #5b2520; color: #ffb4ad; }
+.history-event-shot       { background: #4a3a1a; color: #ffd23f; }
+.history-event-near_miss  { background: #4a3a1a; color: #ffd23f; }
+.history-event-save       { background: #1a3a4a; color: #80d8ff; }
+.history-event-foul       { background: #4a1a30; color: #ff80a6; }
+.history-event-set_piece  { background: #2a3140; }
+.history-event-celebration { background: #2a4a20; color: #b0ff80; }
+.history-event-replay     { background: #2a3140; color: var(--muted); }
+
+.history-text {
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.history-item-chat { border-left-color: var(--accent); }
+
+.history-source {
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.65rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+}
+.history-source-game { background: #1a3a4a; color: #80d8ff; }
+.history-source-chat { background: #4a3a1a; color: var(--accent); }
+
+.history-comment {
+  font-size: 0.8rem;
+  background: #0d1119;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  margin: 0.25rem 0 0.4rem;
+}
+.history-comment-author { color: var(--accent); font-weight: 600; margin-right: 0.4rem; }
+.history-comment-text   { color: #b6bdcb; font-style: italic; }
+
+/* Scoring meter */
+.meter {
+  margin-top: 0.85rem;
+  background: #11151c;
+  border: 1px solid #1f2530;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.meter-empty {
+  margin-top: 0.85rem;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+.meter-row { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.meter-label {
+  display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted);
+}
+.meter-val { font-variant-numeric: tabular-nums; color: var(--fg); }
+
+.meter-bar {
+  background: #1a1f29;
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  transition: width 0.25s ease-out;
+  opacity: 0.55;
+}
+.meter-fill-game { background: #80d8ff; }
+.meter-fill-chat { background: var(--accent); }
+.meter-fill.is-winner { opacity: 1; }
+
+.meter-meta {
+  display: flex; gap: 0.55rem; align-items: center; font-size: 0.72rem;
+}
+.meter-mode {
+  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 0.1rem 0.5rem; border-radius: 999px;
+}
+.meter-mode-game { background: #1a3a4a; color: #80d8ff; }
+.meter-mode-chat { background: #4a3a1a; color: var(--accent); }
+.meter-reason { color: var(--muted); }
+.meter-silent { margin-left: auto; color: #ff80a6; }
