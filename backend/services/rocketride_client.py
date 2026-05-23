@@ -1,25 +1,20 @@
-"""Direct GMI Cloud client — bypasses the RocketRide engine.
+"""Direct Google AI Studio (Gemini) client for commentary.
 
-Same public interface as the RocketRide-backed version (`CommentaryPipeline.start`,
-`.stop`, `.commentate`) so routes/main.py don't need to change. The persona
-instructions that used to live in pipelines/commentary.pipe are inlined as the
-system prompt below.
-
-When the RocketRide local engine is fixed (or you switch to cloud), revert to
-the RocketRide-backed implementation in git history.
+Misnamed file (legacy of when this wrapped RocketRide) — kept to avoid churning
+imports in main.py and routes/stream.py. Same public interface:
+`CommentaryPipeline.start / .stop / .commentate(scene, language) -> str | None`.
 """
 
 import json
 import logging
 import os
-from typing import Any
 
-import httpx
+from google import genai
+from google.genai import types
 
 log = logging.getLogger(__name__)
 
-_BASE_URL = os.getenv("GMI_BASE_URL", "https://api.gmi-serving.com/v1")
-_MODEL = os.getenv("GMI_MODEL", "google/gemini-3-flash-preview")
+_MODEL = os.getenv("GEMINI_COMMENTARY_MODEL", "gemini-3.1-flash-lite")
 
 _SYSTEM = (
     "You are a sarcastic, witty World Cup soccer commentator with a dry sense of "
@@ -40,49 +35,29 @@ _SYSTEM = (
 
 class CommentaryPipeline:
     def __init__(self) -> None:
-        self._client: httpx.AsyncClient | None = None
-        self._apikey = os.environ["ROCKETRIDE_GMI_APIKEY"]
+        self._client: genai.Client | None = None
 
     async def start(self) -> None:
-        self._client = httpx.AsyncClient(
-            base_url=_BASE_URL,
-            headers={
-                "Authorization": f"Bearer {self._apikey}",
-                "Content-Type": "application/json",
-            },
-            timeout=httpx.Timeout(20.0, connect=5.0),
-        )
-        log.info("GMI Cloud client ready (model=%s)", _MODEL)
+        self._client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
+        log.info("Gemini client ready (model=%s)", _MODEL)
 
     async def stop(self) -> None:
-        if self._client:
-            await self._client.aclose()
+        self._client = None
 
     async def commentate(self, scene: str, language: str = "en") -> str | None:
         if not self._client:
             return None
-
-        payload: dict[str, Any] = {
-            "model": _MODEL,
-            "messages": [
-                {"role": "system", "content": _SYSTEM},
-                {
-                    "role": "user",
-                    "content": json.dumps({"scene": scene, "language": language}),
-                },
-            ],
-            "max_tokens": int(os.getenv("COMMENTARY_MAX_TOKENS", "80")),
-            "temperature": 0.85,
-        }
-
         try:
-            resp = await self._client.post("/chat/completions", json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"].strip() or None
-        except httpx.HTTPStatusError as e:
-            log.warning("GMI %s: %s", e.response.status_code, e.response.text[:200])
-            return None
+            resp = await self._client.aio.models.generate_content(
+                model=_MODEL,
+                contents=json.dumps({"scene": scene, "language": language}),
+                config=types.GenerateContentConfig(
+                    system_instruction=_SYSTEM,
+                    temperature=0.85,
+                    max_output_tokens=int(os.getenv("COMMENTARY_MAX_TOKENS", "80")),
+                ),
+            )
+            return (resp.text or "").strip() or None
         except Exception as e:
-            log.warning("GMI call failed: %s", e)
+            log.warning("Gemini commentary call failed: %s", e)
             return None

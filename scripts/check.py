@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-REQUIRED = ["ROCKETRIDE_GMI_APIKEY", "GOOGLE_API_KEY"]
+REQUIRED = ["GOOGLE_API_KEY"]
 
 
 async def main() -> int:
