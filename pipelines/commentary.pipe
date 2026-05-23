@@ -1,0 +1,81 @@
+{
+  "components": [
+    {
+      "id": "chat_1",
+      "provider": "chat",
+      "config": {
+        "hideForm": true,
+        "mode": "Source",
+        "parameters": {},
+        "type": "chat"
+      },
+      "ui": {
+        "position": { "x": 20, "y": 200 },
+        "measured": { "width": 150, "height": 66 },
+        "nodeType": "default",
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "prompt_1",
+      "provider": "prompt",
+      "config": {
+        "instructions": [
+          "You are a sarcastic, witty World Cup soccer commentator with a dry sense of humor — think Peter Drury crossed with Anthony Bourdain.",
+          "You will receive a JSON payload describing what just happened in a game (scene description, players visible, ball position, recent events) plus a target language code.",
+          "Reply with ONE short live-commentary line — 1 to 2 sentences, max 25 words.",
+          "Be sarcastic but not mean. Reference what's actually on screen. Roast the players' decisions, not their identities.",
+          "Write the line NATIVELY in the requested language. Do NOT translate from English — sarcasm dies in translation. Match the rhythm and idioms of that language.",
+          "Do not include speaker tags, stage directions, quotes, or any preamble. Output only the spoken line."
+        ],
+        "parameters": {}
+      },
+      "input": [
+        { "lane": "questions", "from": "chat_1" }
+      ],
+      "ui": {
+        "position": { "x": 240, "y": 200 },
+        "measured": { "width": 150, "height": 66 },
+        "nodeType": "default",
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "llm_gmi_cloud_1",
+      "provider": "llm_gmi_cloud",
+      "config": {
+        "profile": "gemini-3-flash",
+        "gemini-3-flash": {
+          "apikey": "${ROCKETRIDE_GMI_APIKEY}"
+        },
+        "parameters": {}
+      },
+      "input": [
+        { "lane": "questions", "from": "prompt_1" }
+      ],
+      "ui": {
+        "position": { "x": 460, "y": 200 },
+        "measured": { "width": 150, "height": 66 },
+        "nodeType": "default",
+        "formDataValid": true
+      }
+    },
+    {
+      "id": "response_answers_1",
+      "provider": "response_answers",
+      "config": { "laneName": "answers" },
+      "input": [
+        { "lane": "answers", "from": "llm_gmi_cloud_1" }
+      ],
+      "ui": {
+        "position": { "x": 680, "y": 200 },
+        "measured": { "width": 150, "height": 66 },
+        "nodeType": "default",
+        "formDataValid": true
+      }
+    }
+  ],
+  "project_id": "72c8e336-cb9b-4638-b3f2-1db92b9f5cfd",
+  "viewport": { "x": 0, "y": 0, "zoom": 1 },
+  "version": 1
+}

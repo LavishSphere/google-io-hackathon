@@ -1,3 +1,30 @@
 .rocketride/
 .claude/
 .github/
+
+# Env
+.env
+.env.local
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Demo clips (large)
+demo_clips/*.mp4
+demo_clips/*.mov
+
+# Scraped transcripts
+backend/data/transcripts/*.txt
+
+# OS
+.DS_Store
