@@ -10,8 +10,10 @@
         "type": "chat"
       },
       "ui": {
-        "position": { "x": 20, "y": 200 },
-        "measured": { "width": 150, "height": 66 },
+        "position": {
+          "x": 20,
+          "y": 200
+        },
         "nodeType": "default",
         "formDataValid": true
       }
@@ -30,15 +32,20 @@
         ],
         "parameters": {}
       },
-      "input": [
-        { "lane": "questions", "from": "chat_1" }
-      ],
       "ui": {
-        "position": { "x": 240, "y": 200 },
-        "measured": { "width": 150, "height": 66 },
+        "position": {
+          "x": 240,
+          "y": 200
+        },
         "nodeType": "default",
         "formDataValid": true
-      }
+      },
+      "input": [
+        {
+          "lane": "questions",
+          "from": "chat_1"
+        }
+      ]
     },
     {
       "id": "llm_gmi_cloud_1",
@@ -46,36 +53,56 @@
       "config": {
         "profile": "gemini-3-flash",
         "gemini-3-flash": {
-          "apikey": "${ROCKETRIDE_GMI_APIKEY}"
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxMGYyZWM4LWU5YWEtNDg0ZC1iYjhkLWQ3YmVkOWU0ZDc5NyIsInNjb3BlIjoiaWVfbW9kZWwiLCJjbGllbnRJZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCJ9.tkPNT1Thk5hP4I6u_moY3KNKDoCruVaDzW90m_37Ygc"
         },
-        "parameters": {}
+        "parameters": {
+          "google": {}
+        }
       },
-      "input": [
-        { "lane": "questions", "from": "prompt_1" }
-      ],
       "ui": {
-        "position": { "x": 460, "y": 200 },
-        "measured": { "width": 150, "height": 66 },
+        "position": {
+          "x": 460,
+          "y": 200
+        },
         "nodeType": "default",
         "formDataValid": true
-      }
+      },
+      "input": [
+        {
+          "lane": "questions",
+          "from": "prompt_1"
+        }
+      ]
     },
     {
       "id": "response_answers_1",
       "provider": "response_answers",
-      "config": { "laneName": "answers" },
-      "input": [
-        { "lane": "answers", "from": "llm_gmi_cloud_1" }
-      ],
+      "config": {
+        "laneName": "answers"
+      },
       "ui": {
-        "position": { "x": 680, "y": 200 },
-        "measured": { "width": 150, "height": 66 },
+        "position": {
+          "x": 680,
+          "y": 200
+        },
         "nodeType": "default",
         "formDataValid": true
-      }
+      },
+      "input": [
+        {
+          "lane": "answers",
+          "from": "llm_gmi_cloud_1"
+        }
+      ]
     }
   ],
   "project_id": "72c8e336-cb9b-4638-b3f2-1db92b9f5cfd",
-  "viewport": { "x": 0, "y": 0, "zoom": 1 },
-  "version": 1
+  "version": 1,
+  "isLocked": false,
+  "snapToGrid": true,
+  "snapGridSize": [
+    10,
+    10
+  ],
+  "docRevision": 2
 }
