@@ -1,4 +1,4 @@
-# Sarcastic AI World Cup Commentator
+# HotMic — Sarcastic AI World Cup Commentator
 
 Hackathon project — Google I/O / GDG Newport Beach × NVIDIA × Gemma × RocketRide.
 

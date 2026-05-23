@@ -96,6 +96,10 @@ export function useCommentaryWS({
   const expectedRef = useRef(0);
   const resolvedRef = useRef(0);
   const playingRef = useRef(false);
+  // Prevents a double-click of Start (or React StrictMode re-invocation) from
+  // opening a second WS and resending every frame — the source of "the AI
+  // generated the same line twice" bugs.
+  const startingRef = useRef(false);
 
   const [line, setLine] = useState('');
   const [lineSource, setLineSource] = useState<Source>('game');
@@ -182,6 +186,12 @@ export function useCommentaryWS({
   const start = useCallback(async () => {
     const video = videoRef.current;
     if (!video) return;
+    if (startingRef.current) return;  // re-entry guard
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
+      // Already have a live socket — don't open a second one.
+      return;
+    }
+    startingRef.current = true;
 
     cuesRef.current = [];
     pendingCommentRef.current = {};
@@ -365,13 +375,18 @@ export function useCommentaryWS({
     }));
     setStatus(`preparing 0/${stamps.length}…`);
 
-    for (const ts of stamps) {
-      await seekTo(video, ts);
-      const frame = grabFrame(video);
-      if (!frame) continue;
-      ws.send(JSON.stringify({ type: 'frame', data: frame, timestamp: ts }));
+    try {
+      for (const ts of stamps) {
+        if (ws.readyState !== WebSocket.OPEN) break;  // bail if socket died mid-sweep
+        await seekTo(video, ts);
+        const frame = grabFrame(video);
+        if (!frame) continue;
+        ws.send(JSON.stringify({ type: 'frame', data: frame, timestamp: ts }));
+      }
+      await seekTo(video, 0);
+    } finally {
+      startingRef.current = false;
     }
-    await seekTo(video, 0);
   }, [videoRef, language, clipId, disableAutoChat, match, tick]);
 
   // Operator-injected fan comment. Pauses video at the injection point so the
@@ -427,7 +442,9 @@ export function useCommentaryWS({
 
   const stop = useCallback(() => {
     wsRef.current?.close();
+    wsRef.current = null;
     playingRef.current = false;
+    startingRef.current = false;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     videoRef.current?.pause();
     setRunning(false);
