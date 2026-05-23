@@ -30,49 +30,79 @@ async def commentary_ws(ws: WebSocket) -> None:
 
     try:
         async for raw in ws.iter_text():
-            msg = json.loads(raw)
-            kind = msg.get("type")
+            try:
+                msg = json.loads(raw)
+                kind = msg.get("type")
 
-            if kind == "config":
-                language = msg.get("language", "en")
-                log.info("ws language=%s", language)
-                continue
+                if kind == "config":
+                    language = msg.get("language", "en")
+                    log.info("ws language=%s", language)
+                    continue
 
-            if kind != "frame":
-                continue
+                if kind != "frame":
+                    continue
 
-            frame_b64 = msg["data"]
-            ts = msg.get("timestamp", 0.0)
+                frame_b64 = msg["data"]
+                ts = msg.get("timestamp", 0.0)
 
-            scene = await describe_frame(frame_b64)
-            if not scene:
-                continue
+                scene = await describe_frame(frame_b64)
+                if not scene:
+                    log.warning("ts=%.2f: no scene description (vision returned empty)", ts)
+                    await ws.send_text(json.dumps({
+                        "type": "commentary", "text": "...", "language": language, "timestamp": ts,
+                    }))
+                    continue
 
-            line = await pipeline.commentate(scene=scene, language=language)
-            if not line:
-                continue
+                line = await pipeline.commentate(scene=scene, language=language)
+                if not line:
+                    log.warning("ts=%.2f: no commentary (LLM returned empty)", ts)
+                    await ws.send_text(json.dumps({
+                        "type": "commentary", "text": "...", "language": language, "timestamp": ts,
+                    }))
+                    continue
 
-            await ws.send_text(json.dumps({
-                "type": "commentary",
-                "text": line,
-                "language": language,
-                "timestamp": ts,
-            }))
+                log.info("ts=%.2f → %s", ts, line[:80])
+                await ws.send_text(json.dumps({
+                    "type": "commentary",
+                    "text": line,
+                    "language": language,
+                    "timestamp": ts,
+                }))
 
-            # TTS streaming runs concurrently — don't block the next frame.
-            asyncio.create_task(_stream_tts(ws, tts, line, language))
+                # TTS streaming runs concurrently — don't block the next frame.
+                asyncio.create_task(_stream_tts(ws, tts, line, language, ts))
+
+            except WebSocketDisconnect:
+                raise
+            except Exception as e:
+                log.exception("frame processing failed: %s", e)
+                # Keep the session alive — emit a placeholder so the cue resolves.
+                try:
+                    await ws.send_text(json.dumps({
+                        "type": "commentary", "text": "...", "language": language,
+                        "timestamp": msg.get("timestamp", 0.0) if isinstance(msg, dict) else 0.0,
+                    }))
+                except Exception:
+                    pass
 
     except WebSocketDisconnect:
         log.info("ws disconnected")
 
 
-async def _stream_tts(ws: WebSocket, tts: GeminiLiveTTS, text: str, language: str) -> None:
+async def _stream_tts(
+    ws: WebSocket,
+    tts: GeminiLiveTTS,
+    text: str,
+    language: str,
+    timestamp: float,
+) -> None:
     try:
         async for chunk, mime in tts.synthesize(text, language=language):
             await ws.send_text(json.dumps({
                 "type": "audio",
                 "data": base64.b64encode(chunk).decode(),
                 "mime": mime,
+                "timestamp": timestamp,
             }))
     except Exception as e:
         log.warning("tts failed: %s", e)
