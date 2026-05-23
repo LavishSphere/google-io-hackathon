@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-REQUIRED = ["ROCKETRIDE_APIKEY", "ROCKETRIDE_GMI_APIKEY", "GOOGLE_API_KEY"]
+REQUIRED = ["ROCKETRIDE_GMI_APIKEY", "GOOGLE_API_KEY"]
 
 
 async def main() -> int:
@@ -24,29 +24,21 @@ async def main() -> int:
 
     print("env: ok")
 
-    pipe = Path(__file__).resolve().parents[1] / "pipelines" / "commentary.pipe"
-    if not pipe.exists():
-        print(f"pipeline file missing: {pipe}")
-        return 1
-    print(f"pipeline file: {pipe}")
+    from backend.services.rocketride_client import CommentaryPipeline
 
+    pipeline = CommentaryPipeline()
+    await pipeline.start()
     try:
-        from rocketride import RocketRideClient
-        from rocketride.schema import Question
-    except ImportError:
-        print("rocketride not installed — pip install -r backend/requirements.txt")
-        return 1
-
-    async with RocketRideClient() as client:
-        result = await client.use(filepath=str(pipe), use_existing=True)
-        token = result["token"]
-        print(f"pipeline started: {token}")
-
-        q = Question()
-        q.addQuestion('{"scene":"Striker shapes to shoot from 25 yards","language":"en"}')
-        response = await client.chat(token=token, question=q)
-        answers = response.get("answers") or []
-        print(f"commentary sample: {answers[:1]}")
+        line = await pipeline.commentate(
+            scene="Striker shapes to shoot from 25 yards, defender slips",
+            language="en",
+        )
+        print(f"commentary: {line!r}")
+        if not line:
+            print("(no commentary — check the GMI key, base url, or model name)")
+            return 1
+    finally:
+        await pipeline.stop()
 
     print("all good.")
     return 0

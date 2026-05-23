@@ -1,59 +1,88 @@
-"""Wraps the RocketRide commentary pipeline as a long-lived service.
+"""Direct GMI Cloud client — bypasses the RocketRide engine.
 
-Pipeline started once at app boot; each request reuses the same token.
-See ROCKETRIDE_COMMON_MISTAKES.md (Mistake 9) for why.
+Same public interface as the RocketRide-backed version (`CommentaryPipeline.start`,
+`.stop`, `.commentate`) so routes/main.py don't need to change. The persona
+instructions that used to live in pipelines/commentary.pipe are inlined as the
+system prompt below.
+
+When the RocketRide local engine is fixed (or you switch to cloud), revert to
+the RocketRide-backed implementation in git history.
 """
 
 import json
 import logging
-from pathlib import Path
+import os
+from typing import Any
 
-from rocketride import RocketRideClient
-from rocketride.schema import Question
+import httpx
 
 log = logging.getLogger(__name__)
 
-_PIPELINE_PATH = Path(__file__).resolve().parents[2] / "pipelines" / "commentary.pipe"
+_BASE_URL = os.getenv("GMI_BASE_URL", "https://api.gmi-serving.com/v1")
+_MODEL = os.getenv("GMI_MODEL", "google/gemini-3-flash-preview")
+
+_SYSTEM = (
+    "You are a sarcastic, witty World Cup soccer commentator with a dry sense of "
+    "humor — think Peter Drury crossed with Anthony Bourdain.\n"
+    "You will receive a JSON payload describing what just happened in a game "
+    "(scene description, players visible, ball position, recent events) plus a "
+    "target language code.\n"
+    "Reply with ONE short live-commentary line — 1 to 2 sentences, max 25 words.\n"
+    "Be sarcastic but not mean. Reference what's actually on screen. Roast the "
+    "players' decisions, not their identities.\n"
+    "Write the line NATIVELY in the requested language. Do NOT translate from "
+    "English — sarcasm dies in translation. Match the rhythm and idioms of that "
+    "language.\n"
+    "Do not include speaker tags, stage directions, quotes, or any preamble. "
+    "Output only the spoken line."
+)
 
 
 class CommentaryPipeline:
     def __init__(self) -> None:
-        self._client: RocketRideClient | None = None
-        self._token: str | None = None
+        self._client: httpx.AsyncClient | None = None
+        self._apikey = os.environ["ROCKETRIDE_GMI_APIKEY"]
 
     async def start(self) -> None:
-        self._client = RocketRideClient()
-        await self._client.connect()
-        result = await self._client.use(
-            filepath=str(_PIPELINE_PATH),
-            use_existing=True,
+        self._client = httpx.AsyncClient(
+            base_url=_BASE_URL,
+            headers={
+                "Authorization": f"Bearer {self._apikey}",
+                "Content-Type": "application/json",
+            },
+            timeout=httpx.Timeout(20.0, connect=5.0),
         )
-        self._token = result["token"]
-        log.info("RocketRide commentary pipeline ready (token=%s)", self._token)
+        log.info("GMI Cloud client ready (model=%s)", _MODEL)
 
     async def stop(self) -> None:
         if self._client:
-            try:
-                if self._token:
-                    await self._client.terminate(self._token)
-            finally:
-                await self._client.disconnect()
+            await self._client.aclose()
 
     async def commentate(self, scene: str, language: str = "en") -> str | None:
-        if not self._client or not self._token:
+        if not self._client:
             return None
 
-        payload = json.dumps({"scene": scene, "language": language})
-        question = Question()
-        question.addQuestion(payload)
-        question.addInstruction(
-            "Language",
-            f"Respond natively in language code '{language}'. Do not translate from English.",
-        )
+        payload: dict[str, Any] = {
+            "model": _MODEL,
+            "messages": [
+                {"role": "system", "content": _SYSTEM},
+                {
+                    "role": "user",
+                    "content": json.dumps({"scene": scene, "language": language}),
+                },
+            ],
+            "max_tokens": int(os.getenv("COMMENTARY_MAX_TOKENS", "80")),
+            "temperature": 0.85,
+        }
 
-        response = await self._client.chat(token=self._token, question=question)
-        answers = response.get("answers") or []
-        if not answers:
+        try:
+            resp = await self._client.post("/chat/completions", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"].strip() or None
+        except httpx.HTTPStatusError as e:
+            log.warning("GMI %s: %s", e.response.status_code, e.response.text[:200])
             return None
-        first = answers[0]
-        return first if isinstance(first, str) else str(first)
+        except Exception as e:
+            log.warning("GMI call failed: %s", e)
+            return None
