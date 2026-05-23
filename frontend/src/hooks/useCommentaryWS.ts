@@ -6,9 +6,21 @@ type Args = {
   videoRef: RefObject<HTMLVideoElement>;
   language: string;
   clipId?: string;
+  disableAutoChat?: boolean;
+  match?: string;
 };
 
-const SAMPLE_FPS = 0.7;
+export type RosterStatus =
+  | { state: 'idle' }
+  | { state: 'loading'; match?: string }
+  | { state: 'ready'; match: string; teams: { name: string; kit_color: string; n_players: number }[] }
+  | { state: 'none'; match?: string };
+
+// Higher fps → finer event timing. Each cue is one LLM round-trip on the
+// backend, so this also scales pre-roll length. 1.5 fps catches a goal within
+// ~330ms of when it happens; 2.0 within 250ms. Beyond that, Gemini RPM
+// becomes the bottleneck unless we parallelize the backend.
+const SAMPLE_FPS = 1.5;
 const BUFFER_AHEAD_CUES = 1;
 const TIMESTAMP_EPS = 0.05;
 
@@ -38,6 +50,14 @@ export type ScoringSnapshot = {
   event: string;
 };
 
+export type FanComment = {
+  ts: number;
+  text: string;
+  author: string;
+  controversy: number;
+  reactions: number;
+};
+
 type Cue = {
   ts: number;
   text: string;
@@ -62,7 +82,13 @@ function seekTo(video: HTMLVideoElement, t: number): Promise<void> {
   });
 }
 
-export function useCommentaryWS({ videoRef, language, clipId }: Args) {
+export function useCommentaryWS({
+  videoRef,
+  language,
+  clipId,
+  disableAutoChat = false,
+  match,
+}: Args) {
   const wsRef = useRef<WebSocket | null>(null);
   const rafRef = useRef<number | null>(null);
   const cuesRef = useRef<Cue[]>([]);
@@ -79,17 +105,33 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [score, setScore] = useState<Score>({});
   const [scoring, setScoring] = useState<ScoringSnapshot | null>(null);
+  const [roster, setRoster] = useState<RosterStatus>({ state: 'idle' });
+
+  // Pre-baked chat feed (all comments) + the subset that's "arrived" by the
+  // current playback time. liveChat updates inside the rAF tick.
+  const chatFeedRef = useRef<FanComment[]>([]);
+  const lastLiveChatTsRef = useRef<number>(-1);
+  const [liveChat, setLiveChat] = useState<FanComment[]>([]);
+  const [reactingToTs, setReactingToTs] = useState<number | null>(null);
 
   useEffect(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'config', language, clip_id: clipId }));
+      wsRef.current.send(JSON.stringify({
+        type: 'config',
+        language,
+        clip_id: clipId,
+        disable_auto_chat: disableAutoChat,
+        match,
+      }));
     }
-  }, [language, clipId]);
+  }, [language, clipId, disableAutoChat, match]);
 
   const tick = useCallback(() => {
     const video = videoRef.current;
     if (!video || !playingRef.current) return;
     const t = video.currentTime;
+
+    // Fire commentary cues whose ts has been reached.
     for (const cue of cuesRef.current) {
       if (!cue.fired && cue.resolved && cue.ts <= t) {
         cue.fired = true;
@@ -109,9 +151,31 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
             },
           ]);
           for (const chunk of cue.audio) playPcmChunk(chunk.data, chunk.mime);
+          if (cue.source === 'chat' && cue.comment) {
+            // Find the matching feed comment by text+author and highlight it.
+            const match = chatFeedRef.current.find(
+              (c) => c.text === cue.comment?.text && c.author === cue.comment?.author
+            );
+            if (match) setReactingToTs(match.ts);
+          }
         }
       }
     }
+
+    // Reveal pre-baked fan comments at their scheduled ts (Twitch-style feed).
+    if (chatFeedRef.current.length > 0) {
+      const newlyVisible: FanComment[] = [];
+      for (const c of chatFeedRef.current) {
+        if (c.ts <= t && c.ts > lastLiveChatTsRef.current) {
+          newlyVisible.push(c);
+        }
+      }
+      if (newlyVisible.length > 0) {
+        lastLiveChatTsRef.current = newlyVisible[newlyVisible.length - 1].ts;
+        setLiveChat((prev) => [...prev, ...newlyVisible]);
+      }
+    }
+
     rafRef.current = requestAnimationFrame(tick);
   }, [videoRef]);
 
@@ -123,11 +187,16 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
     pendingCommentRef.current = {};
     expectedRef.current = 0;
     resolvedRef.current = 0;
+    chatFeedRef.current = [];
+    lastLiveChatTsRef.current = -1;
     setLine('');
     setChatComment(null);
     setHistory([]);
     setScore({});
     setScoring(null);
+    setRoster({ state: 'idle' });
+    setLiveChat([]);
+    setReactingToTs(null);
 
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${window.location.host}/api/ws/commentary`);
@@ -144,6 +213,19 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
 
       if (msg.type === 'scoring') {
         setScoring(msg as ScoringSnapshot);
+        return;
+      }
+
+      if (msg.type === 'roster_status') {
+        setRoster(msg as RosterStatus);
+        return;
+      }
+
+      if (msg.type === 'chat_feed') {
+        chatFeedRef.current = (msg.comments || []) as FanComment[];
+        lastLiveChatTsRef.current = -1;
+        setLiveChat([]);
+        setReactingToTs(null);
         return;
       }
 
@@ -187,16 +269,26 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
       } else if (msg.type === 'audio') {
         cue.audio.push({ data: msg.data, mime: msg.mime });
         if (cue.fired && !cue.isSkip) playPcmChunk(msg.data, msg.mime);
+        // Audio arrival for cue 0 is the gating signal for first playback.
+        maybeStartPlayback();
       }
     };
 
     ws.onclose = () => {
-      setStatus('disconnected');
-      setRunning(false);
-      playingRef.current = false;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      // Don't kill the dispatcher just because the WS closed mid-clip — we
+      // already have cues buffered. Let the rAF loop drain them so any audio
+      // we already received still plays at the right moment. Only mark the
+      // session as disconnected (no more frames will be sent) — running stays
+      // true so the user can keep watching what's already loaded.
+      if (playingRef.current) {
+        setStatus('live (ws closed) — playing buffered commentary');
+      } else {
+        setStatus('disconnected');
+        setRunning(false);
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      }
     };
-    ws.onerror = () => setStatus('error');
+    ws.onerror = () => setStatus('ws error (still playing buffered commentary)');
 
     function bumpStatus() {
       if (resolvedRef.current >= expectedRef.current) {
@@ -208,9 +300,24 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
       }
     }
 
+    function firstCueReady(): boolean {
+      // Only start playback once the FIRST cue is fully ready to fire.
+      // Skip cues count as ready (no audio needed). A real commentary cue
+      // needs BOTH its text and at least one audio chunk in hand — otherwise
+      // the viewer sees the subtitle pop in with no voice for ~700ms.
+      const cues = cuesRef.current;
+      if (cues.length === 0) return false;
+      const first = cues[0];
+      if (!first.resolved) return false;
+      if (first.isSkip) return true;
+      if (!first.text) return false;
+      if (first.audio.length === 0) return false;
+      return true;
+    }
+
     function maybeStartPlayback() {
       if (playingRef.current) return;
-      if (resolvedRef.current < BUFFER_AHEAD_CUES) return;
+      if (!firstCueReady()) return;
       playingRef.current = true;
       setStatus('live');
       video!.currentTime = 0;
@@ -223,7 +330,13 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
       else ws.addEventListener('open', () => resolve(), { once: true });
     });
 
-    ws.send(JSON.stringify({ type: 'config', language, clip_id: clipId }));
+    ws.send(JSON.stringify({
+      type: 'config',
+      language,
+      clip_id: clipId,
+      disable_auto_chat: disableAutoChat,
+      match,
+    }));
     setRunning(true);
     setStatus('preparing commentary…');
 
@@ -259,7 +372,58 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
       ws.send(JSON.stringify({ type: 'frame', data: frame, timestamp: ts }));
     }
     await seekTo(video, 0);
-  }, [videoRef, language, clipId, tick]);
+  }, [videoRef, language, clipId, disableAutoChat, match, tick]);
+
+  // Operator-injected fan comment. Pauses video at the injection point so the
+  // AI's reaction lands exactly when the moment "happened", then resumes once
+  // the reaction's commentary cue has fired.
+  const injectComment = useCallback(
+    (text: string, author: string = '@you') => {
+      const ws = wsRef.current;
+      const video = videoRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN || !video) return;
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      const ts = +video.currentTime.toFixed(3);
+      // Add an ad-hoc cue at the injection point. The chat_reaction message
+      // arrival will populate it; rAF fires it as soon as the playhead is on
+      // (or past) ts.
+      cuesRef.current.push({
+        ts,
+        text: '',
+        audio: [],
+        resolved: false,
+        fired: false,
+        isSkip: false,
+        event: 'manual_inject',
+        importance: 0,
+        source: 'chat',
+        comment: { author, text: trimmed },
+      });
+
+      // Hold the video here so the reaction lands at the exact paused moment.
+      const wasPaused = video.paused;
+      video.pause();
+
+      const watcher = () => {
+        const cue = cuesRef.current.find((c) => Math.abs(c.ts - ts) < TIMESTAMP_EPS);
+        if (cue?.fired) {
+          if (!wasPaused) video.play().catch(() => {});
+          clearInterval(handle);
+        }
+      };
+      const handle = window.setInterval(watcher, 120);
+
+      ws.send(JSON.stringify({
+        type: 'inject_comment',
+        text: trimmed,
+        author,
+        timestamp: ts,
+      }));
+    },
+    [videoRef]
+  );
 
   const stop = useCallback(() => {
     wsRef.current?.close();
@@ -282,5 +446,9 @@ export function useCommentaryWS({ videoRef, language, clipId }: Args) {
     history,
     score,
     scoring,
+    injectComment,
+    roster,
+    liveChat,
+    reactingToTs,
   };
 }

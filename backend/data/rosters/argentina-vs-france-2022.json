@@ -1,0 +1,55 @@
+{
+  "match": "2022 FIFA World Cup Final — Argentina vs France (Qatar, 18 December 2022)",
+  "teams": [
+    {
+      "name": "Argentina",
+      "kit_color": "light blue and white",
+      "players": [
+        { "number": 23, "name": "Emiliano Martínez",     "position": "GK" },
+        { "number": 26, "name": "Nahuel Molina",         "position": "RB" },
+        { "number": 13, "name": "Cristian Romero",       "position": "CB" },
+        { "number": 19, "name": "Nicolás Otamendi",      "position": "CB" },
+        { "number": 3,  "name": "Nicolás Tagliafico",    "position": "LB" },
+        { "number": 7,  "name": "Rodrigo De Paul",       "position": "CM" },
+        { "number": 24, "name": "Enzo Fernández",        "position": "CM" },
+        { "number": 20, "name": "Alexis Mac Allister",   "position": "CM" },
+        { "number": 11, "name": "Ángel Di María",        "position": "LW" },
+        { "number": 9,  "name": "Julián Álvarez",        "position": "CF" },
+        { "number": 10, "name": "Lionel Messi",          "position": "RW (captain)" },
+        { "number": 22, "name": "Lautaro Martínez",      "position": "FW (sub)" },
+        { "number": 5,  "name": "Leandro Paredes",       "position": "MF (sub)" },
+        { "number": 18, "name": "Guido Rodríguez",       "position": "MF (sub)" },
+        { "number": 25, "name": "Lisandro Martínez",     "position": "DF (sub)" },
+        { "number": 4,  "name": "Gonzalo Montiel",       "position": "DF (sub)" },
+        { "number": 16, "name": "Thiago Almada",         "position": "MF (sub)" },
+        { "number": 21, "name": "Paulo Dybala",          "position": "FW (sub)" },
+        { "number": 17, "name": "Papu Gómez",            "position": "MF (sub)" }
+      ]
+    },
+    {
+      "name": "France",
+      "kit_color": "navy blue",
+      "players": [
+        { "number": 1,  "name": "Hugo Lloris",           "position": "GK (captain)" },
+        { "number": 5,  "name": "Jules Koundé",          "position": "RB" },
+        { "number": 4,  "name": "Raphaël Varane",        "position": "CB" },
+        { "number": 17, "name": "Dayot Upamecano",       "position": "CB" },
+        { "number": 22, "name": "Theo Hernández",        "position": "LB" },
+        { "number": 8,  "name": "Aurélien Tchouaméni",   "position": "CDM" },
+        { "number": 14, "name": "Adrien Rabiot",         "position": "CM" },
+        { "number": 7,  "name": "Antoine Griezmann",     "position": "AM" },
+        { "number": 11, "name": "Ousmane Dembélé",       "position": "RW" },
+        { "number": 9,  "name": "Olivier Giroud",        "position": "CF" },
+        { "number": 10, "name": "Kylian Mbappé",         "position": "LW" },
+        { "number": 12, "name": "Randal Kolo Muani",     "position": "FW (sub)" },
+        { "number": 3,  "name": "Axel Disasi",           "position": "DF (sub)" },
+        { "number": 13, "name": "Youssouf Fofana",       "position": "MF (sub)" },
+        { "number": 15, "name": "Jordan Veretout",       "position": "MF (sub)" },
+        { "number": 18, "name": "Eduardo Camavinga",     "position": "MF (sub)" },
+        { "number": 19, "name": "Karim Benzema",         "position": "FW (sub)" },
+        { "number": 24, "name": "Ibrahima Konaté",       "position": "DF (sub)" },
+        { "number": 25, "name": "Marcus Thuram",         "position": "FW (sub)" }
+      ]
+    }
+  ]
+}

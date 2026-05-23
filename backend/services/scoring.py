@@ -180,10 +180,11 @@ class ScoringState:
         # Should we actually speak this slot? Two gates:
         #   1. enforce a minimum gap between consecutive utterances
         #   2. if it's just a lull and nothing in chat is interesting, stay quiet
+        # Hard events bypass BOTH gates — a goal MUST be reacted to in the moment.
         winning_priority = priority_game if target_mode is Mode.game else priority_comment
         too_soon = (ts - self.last_utterance_ts) < COMMENT_GAP_SECONDS
         is_lull = winning_priority < SPEAK_THRESHOLD
-        speak = not too_soon and (not is_lull or _hard_event(triage))
+        speak = _hard_event(triage) or (not too_soon and not is_lull)
 
         decision = Decision(
             mode=target_mode,

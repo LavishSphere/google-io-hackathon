@@ -40,6 +40,12 @@ class Event(str, Enum):
     off_play = "off_play"
 
 
+class VisibleJersey(BaseModel):
+    """One legible jersey number visible in the frame."""
+    number: int
+    team_color: str   # color word; will be matched to the roster's kit_color
+
+
 class FrameTriage(BaseModel):
     """Raw vision output — gets folded into the scoring state machine."""
 
@@ -71,6 +77,11 @@ class FrameTriage(BaseModel):
     goal_scored: bool       # mirrors hard_goal but we keep both for clarity
     team_color: Optional[str] = None
 
+    # Jersey numbers the vision model can read in this frame. Empty when the
+    # camera angle / motion blur makes them unreadable. The commentary LLM
+    # uses these (plus the roster) to name players by number.
+    visible_numbers: list[VisibleJersey] = []
+
 
 _INSTRUCTION = (
     "You are a triage system watching a World Cup soccer broadcast. For each "
@@ -97,7 +108,13 @@ _INSTRUCTION = (
     "scene: one neutral sentence. Who has the ball, where, what's about to "
     "happen. No opinion, no flourish, under 25 words.\n"
     "team_color: kit color of the team in possession during a key moment, only "
-    "if clearly visible. Null otherwise."
+    "if clearly visible. Null otherwise.\n\n"
+    "visible_numbers: list any jersey numbers you can clearly read in this "
+    "frame, with the kit color of the player wearing them. Use one-word colors "
+    "(red, white, navy, sky-blue, etc.). DO NOT GUESS — if a number is blurry, "
+    "obscured, or you're unsure, OMIT it. An empty list is the correct answer "
+    "for most frames. Typical legibility: 0–2 numbers per frame in close shots, "
+    "0 in wide shots."
 )
 
 

@@ -33,9 +33,11 @@ body {
   border: 1px solid #1f2530;
   border-radius: 12px;
   padding: 0.75rem 0.85rem;
-  height: 70vh;
+  height: 80vh;
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
 }
 
 .side-title {
@@ -43,9 +45,12 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.4rem;
   border-bottom: 1px solid #1f2530;
-  margin-bottom: 0.5rem;
+}
+
+.side-title-secondary {
+  margin-top: 0.5rem;
 }
 
 @media (max-width: 900px) {
@@ -168,7 +173,8 @@ body {
 .scoreboard-team-score { color: var(--accent); font-size: 1.05rem; }
 
 .history {
-  flex: 1;
+  flex: 1 1 50%;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -299,3 +305,165 @@ body {
 .meter-mode-chat { background: #4a3a1a; color: var(--accent); }
 .meter-reason { color: var(--muted); }
 .meter-silent { margin-left: auto; color: #ff80a6; }
+
+/* Manual comment injector */
+.injector {
+  margin-top: 0.85rem;
+  background: #11151c;
+  border: 1px solid #1f2530;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.injector-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.injector-author,
+.injector-text {
+  background: #1a1f29;
+  color: var(--fg);
+  border: 1px solid #2a3140;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.9rem;
+}
+.injector-author { width: 160px; }
+.injector-text   { flex: 1; }
+
+.injector-author:disabled,
+.injector-text:disabled {
+  opacity: 0.4;
+}
+
+.btn-inject {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.injector-presets {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.injector-preset {
+  background: #1a1f29;
+  color: var(--muted);
+  border: 1px solid #2a3140;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.injector-preset:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.injector-preset:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Auto-chat toggle */
+.auto-chat-toggle {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Match input */
+.match-input {
+  background: #1a1f29;
+  color: var(--fg);
+  border: 1px solid #2a3140;
+  border-radius: 8px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.9rem;
+  min-width: 280px;
+  flex: 1 1 280px;
+}
+.match-input:disabled { opacity: 0.5; }
+
+/* Roster status banner */
+.roster-status {
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  background: #11151c;
+  border: 1px solid #1f2530;
+  color: var(--muted);
+}
+.roster-status-loading { color: var(--accent); }
+.roster-status-ready strong { color: var(--fg); }
+.roster-status-none { color: #ff80a6; }
+
+/* Live chat panel */
+.live-chat {
+  flex: 1 1 50%;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-right: 0.25rem;
+}
+
+.live-chat-empty {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+}
+
+.live-chat-item {
+  background: #161b24;
+  border-left: 3px solid #2a3140;
+  padding: 0.5rem 0.65rem;
+  border-radius: 4px;
+  animation: chatSlideIn 0.3s ease-out;
+}
+
+@keyframes chatSlideIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.live-chat-reacted {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, #2a1f0a 0%, #161b24 60%);
+}
+
+.live-chat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.live-chat-author { color: var(--accent); font-weight: 600; font-size: 0.78rem; }
+.live-chat-ts { font-variant-numeric: tabular-nums; }
+.live-chat-reactions { margin-left: auto; }
+.live-chat-badge {
+  background: var(--accent);
+  color: #000;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+}
+
+.live-chat-text { font-size: 0.88rem; line-height: 1.35; }
