@@ -7,4 +7,4 @@ pillow==10.4.0
 opencv-python==4.10.0.84
 google-genai==2.6.0
 rocketride
-pydantic==2.9.2
+pydantic>=2.11
