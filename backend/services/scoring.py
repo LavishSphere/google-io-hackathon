@@ -50,10 +50,16 @@ BORING_THRESHOLD = float(os.getenv("BORING_THRESHOLD", "30"))     # G below this
 EXCITING_THRESHOLD = float(os.getenv("EXCITING_THRESHOLD", "80")) # G above this → chat heavily suppressed
 HYSTERESIS_DELTA = float(os.getenv("HYSTERESIS_DELTA", "15"))
 MIN_DWELL_SECONDS = float(os.getenv("MIN_DWELL_SECONDS", "4.0"))
-CHAT_COOLDOWN_SECONDS = float(os.getenv("CHAT_COOLDOWN_SECONDS", "10.0"))
+CHAT_COOLDOWN_SECONDS = float(os.getenv("CHAT_COOLDOWN_SECONDS", "12.0"))
 EMA_ALPHA = float(os.getenv("EMA_ALPHA", "0.6"))                  # weight of the new frame
-SPEAK_THRESHOLD = float(os.getenv("SPEAK_THRESHOLD", "35"))       # below this priority, stay silent (lull)
-COMMENT_GAP_SECONDS = float(os.getenv("COMMENT_GAP_SECONDS", "2.0"))  # min gap between *any* two utterances
+# Speak only when something is actually interesting. priority_game = G + 20,
+# so SPEAK_THRESHOLD=60 means we need G>40 (shot setup / breakaway / save) to
+# talk. Hard events (goal, card, penalty) ALWAYS bypass this gate via the
+# `_hard_event(triage)` short-circuit in `speak`.
+SPEAK_THRESHOLD = float(os.getenv("SPEAK_THRESHOLD", "60"))
+# Min gap between any two spoken lines. Must exceed the typical TTS duration
+# (~3s for a 25-word line) so commentary doesn't stack on top of itself.
+COMMENT_GAP_SECONDS = float(os.getenv("COMMENT_GAP_SECONDS", "5.0"))
 
 # Continuous-signal weights (SCORING.md §1). Summed × 100 = continuous component of G.
 W_BALL_ATTACKING_THIRD = 0.25

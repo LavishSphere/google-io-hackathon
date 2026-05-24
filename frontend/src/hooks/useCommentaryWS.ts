@@ -16,11 +16,13 @@ export type RosterStatus =
   | { state: 'ready'; match: string; teams: { name: string; kit_color: string; n_players: number }[] }
   | { state: 'none'; match?: string };
 
-// Higher fps → finer event timing. Each cue is one LLM round-trip on the
-// backend, so this also scales pre-roll length. 1.5 fps catches a goal within
-// ~330ms of when it happens; 2.0 within 250ms. Beyond that, Gemini RPM
-// becomes the bottleneck unless we parallelize the backend.
-const SAMPLE_FPS = 1.5;
+// We want SPARSE commentary. The backend's SPEAK_THRESHOLD (60) +
+// COMMENT_GAP_SECONDS (5) gate further, so dropping fps here just means
+// fewer triage candidates per second of video — most of which would be
+// thrown out by the gates anyway. 1 fps gives one candidate per second,
+// combined with the backend gates → roughly one spoken line every 5–8s
+// of active play, plus mandatory hot-event reactions.
+const SAMPLE_FPS = 1.0;
 const BUFFER_AHEAD_CUES = 1;
 const TIMESTAMP_EPS = 0.05;
 

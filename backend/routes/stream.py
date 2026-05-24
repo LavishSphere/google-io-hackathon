@@ -24,7 +24,7 @@ from typing import Deque
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..services.chat_feed import ChatWindow, load_chat_for_clip
-from ..services.gemini_live import GeminiLiveTTS
+from ..services.minimax_tts import MiniMaxTTS
 from ..services.roster import (
     Roster,
     format_for_prompt as format_roster_for_prompt,
@@ -64,7 +64,7 @@ async def commentary_ws(ws: WebSocket) -> None:
     await ws.accept()
     language = "en"
     pipeline = ws.app.state.commentary
-    tts = GeminiLiveTTS()
+    tts = MiniMaxTTS()
     ctx = MatchContext()
     scoring = ScoringState()
     chat: ChatWindow = ChatWindow([])  # populated when client sends config
@@ -407,7 +407,7 @@ async def _send_skip(send_json, ts: float, reason: str) -> None:
 
 async def _stream_tts(
     send_json,
-    tts: GeminiLiveTTS,
+    tts: MiniMaxTTS,
     text: str,
     language: str,
     timestamp: float,
